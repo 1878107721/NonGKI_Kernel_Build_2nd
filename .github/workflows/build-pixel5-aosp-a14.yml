@@ -85,7 +85,7 @@ env:
 
 jobs:
   build-kernel:
-    name: Build Pixel 5 (AOSP A14)   # 修改 job 名称
+    name: Build Pixel 5 (AOSP A14)
     runs-on: ubuntu-latest
     env:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
@@ -99,24 +99,18 @@ jobs:
       - name: ⌛️ Compilation environment preparation
         uses: ./.github/workflows/build-env
 
-      # 新增：强制清理内核源码中的 SUSFS 残留（确保干净）
-      - name: 🧹 Clean kernel source (remove SUSFS remnants)
-        run: |
-          # 如果 device_kernel 目录存在，则恢复被修改的文件
-          if [ -d "$GITHUB_WORKSPACE/device_kernel" ]; then
-            cd $GITHUB_WORKSPACE/device_kernel
-            # 恢复可能被 SUSFS 修改过的关键文件
-            git checkout -- fs/proc/task_mmu.c 2>/dev/null || true
-            git checkout -- fs/proc/base.c 2>/dev/null || true
-            git checkout -- include/linux/susfs.h 2>/dev/null || true
-            # 也可以重置所有本地修改（不会丢失代码，因为源码是从远程克隆的）
-            git reset --hard HEAD
-          fi
-
       - name: ⚙️ Get neccssary tools
         uses: ./.github/workflows/build-ready
 
+      # 强制重新克隆内核源码，确保绝对干净
+      - name: 🔄 Force re-clone clean kernel source
+        run: |
+          rm -rf $GITHUB_WORKSPACE/device_kernel
+          git clone --depth=1 --branch ${{ env.KERNEL_BRANCH }} ${{ env.KERNEL_SOURCE }} $GITHUB_WORKSPACE/device_kernel
+
+      # 只有当 SUSFS_ENABLE 为 true 时才运行
       - name: 🪝 Patch Kernel of SUSFS
+        if: env.SUSFS_ENABLE == 'true'
         uses: ./.github/workflows/patch-susfs
 
       - name: 🔗 Patch for no-kprobe
@@ -175,7 +169,7 @@ jobs:
           echo "CONFIG_IP_NF_NAT=y" >> ./arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
           echo "CONFIG_ANDROID_PARANOID_NETWORK=n" >> ./arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
 
-          # Lower KernelSU Next need it.
+          # KernelSU config
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
           echo "CONFIG_KSU_LSM_SECURITY_HOOKS=y" >> ./arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
 
