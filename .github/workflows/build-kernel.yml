@@ -126,3 +126,10 @@ jobs:
       fail-fast: true
     uses: ./.github/workflows/build-nothing-phone-1-lineageos23-a16.yml
     secrets: inherit
+
+  build-pixel5-aosp-a14:
+    name: "Pixel 5 (AOSP A14 / Android 14)"
+    strategy:
+      fail-fast: true
+    uses: ./.github/workflows/build-pixel5-aosp-a14.yml
+    secrets: inherit
